@@ -1,4 +1,4 @@
-name: Build and deploy
+name: Build and deploy to GH Pages
 
 on:
     push:
@@ -6,7 +6,7 @@ on:
         - main
 
 jobs:
-  Build_deploy:
+  build-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
