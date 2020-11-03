@@ -5,13 +5,13 @@ output: html_notebook
 ## Install
 
 ```{r}
-install.packages(tidyverse)
+install.packages('tidyverse')
 library(tidyverse)
-install.packages(rpart)
+install.packages('rpart')
 library(rpart)
-install.packages(rpart.plot)
+install.packages('rpart.plot')
 library(rpart.plot)
-install.packages(randomForest)
+install.packages('randomForest')
 library(randomForest)
 ```
 
