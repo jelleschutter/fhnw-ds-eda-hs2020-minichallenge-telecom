@@ -1,0 +1,37 @@
+name: Build and deploy
+
+on:
+    push:
+        branches:
+        - main
+
+jobs:
+  Build_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: r-lib/actions/setup-pandoc@v1
+        with:
+          pandoc-version: '2.7.3'
+      - uses: r-lib/actions/setup-r@v1
+        with:
+            r-version: '4.0.3'
+
+      - name: Install R dependencies
+        run: Rscript -e "install.packages('rmarkdown')"
+
+      - name: Build html
+        run: Rscript -e "rmarkdown::render('telecom_churn.Rmd')"
+
+      - name: Prepare deployment
+        run: |
+          mkdir build
+          mv index.html build/index.html
+      
+      - name: Deploy gh_pages
+        uses: JamesIves/github-pages-deploy-action@releases/v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: gh-pages
+          FOLDER: build
+          SINGLE_COMMIT: true
