@@ -1,0 +1,111 @@
+---
+title: "Telecom Churn"
+output: html_notebook
+---
+## Install
+
+```{r}
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+```
+
+## Import Data
+```{r}
+data_path <- './data/'
+data <- read.csv(paste0(data_path, 'telecom_churn.csv'))
+```
+
+## Wrangling
+### Rows
+In the process of cleaning the data we first remove all the duplicates. Secondly we remove all rows without a value in the "Churn" column since we can not use these rows to train or test the decision tree.
+```{r}
+# remove duplicates
+reduced_data <- distinct(data)
+
+# remove rows without Churn
+complete_churn <- complete.cases(reduced_data[, 'Churn'])
+reduced_data <- reduced_data[complete_churn, ]
+```
+
+The "TotalCharges" column contains NAs if the customers are new since they have not received a bill yet, so we replace them with zeros to make them suitable for the training of the decision trees.
+```{r}
+reduced_data$TotalCharges[is.na(reduced_data$TotalCharges)] <- 0
+```
+
+### Columns
+To improve the data for training decision trees, we remove "customerID" column since there are some incorrect values and we do not need the column for prediction of the outcome. After that we convert all columns with categorical values into factors to allow better training at a later stage.
+```{r}
+reduced_data$customerID <- NULL
+reduced_data$SeniorCitizen = as.factor(reduced_data$SeniorCitizen)
+
+reduced_data <- reduced_data %>% mutate_if(is.character, as.factor)
+```
+
+## Analysis
+In the following chapter I choose some charts which show the distinctive features of churned customers.
+```{r}
+ggplot(data = reduced_data) + geom_density(mapping = aes(x = tenure, fill = Churn), alpha = 0.5)
+```
+In the plot above we can clearly see that newer customers are churning more often while longer customers tend to churn less.
+```{r}
+ggplot(data = reduced_data) + geom_bar(mapping = aes(x = Contract, fill = Churn), position = 'dodge')
+```
+By grouping by contract type we can clearly see that most churning customers are have a "Month-to-Month" contract.
+```{r}
+ggplot(data = reduced_data) + geom_bar(mapping = aes(x = InternetService, fill = Churn), position = 'dodge')
+```
+By grouping by the internet service type we can see that most churning customers have a "Fiber optic" internet connection.
+## Decision Trees
+### Create Groups
+Before training the decision tree we have to split the data into a training set and a validation set with which we can measure the effectiveness of the decision tree in the end. I opted for a 80/20 split for the two sets in order to have a large training set as well as a validation set with a meaningful size. 
+```{r}
+smp_size <- floor(0.80 * nrow(reduced_data))
+
+set.seed(123)
+train_ind <- sample(seq_len(nrow(reduced_data)), size = smp_size)
+
+training_data <- reduced_data[train_ind, ]
+validation_data <- reduced_data[-train_ind, ]
+```
+
+### RPart
+#### Training
+```{r}
+fit <- rpart(Churn~., training_data, control=rpart.control(minbucket = 835, minsplit = 800, maxdepth = 4))
+rpart.plot(fit, extra=106)
+```
+
+#### Test
+In this step we predict the "Churn" of all rows in the validation data set and compare it to the actual recorded "Churn" value.
+```{r}
+test_result <- predict(fit, validation_data, type = 'class')
+error_rate <- 1 - mean(as.integer(test_result == validation_data$Churn))
+print(paste('Error Rate RPart:', round(error_rate * 100, 2), '%'))
+```
+After pruning I was able to get the error rate somewhere in between 19% and 21% depending on the seed. 
+
+### Random Forest
+As a training exercise I choose to also implement a random forest with the "randomForest" package.
+
+#### Training
+```{r}
+set.seed(3243)
+fit <- randomForest(Churn~., data = training_data)
+plot(fit)
+```
+The diagram shows that after about 80 trees there is almost no further decrease in the error rate. Since the error rate is similar to the one recorded during the validation of the RPart tree I decided against investing further time into optimizing the fitting of the random forest.
+
+#### Test
+```{r}
+test_result <- predict(fit, validation_data, type = 'class')
+error_rate <- 1 - mean(as.integer(test_result == validation_data$Churn))
+print(paste('Error Rate Random Forest:', round(error_rate * 100, 2), '%'))
+```
+The error rate of the validation data set confirms the previously recorded error rate during the training of the random forest which is visible in the chart above.
+
+## Summary
+The available data allows to predict churning with around 80% certainty. This a improvement considering 73% of the customers in the data set have not churned and therefore the error rate would be 27% if we just predict nobody will churn. 
+
+We can also see that decision tree makes decision based on properties which are also visible for human eye in the analysis chapter.
