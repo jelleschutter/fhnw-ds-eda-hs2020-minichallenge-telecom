@@ -29,7 +29,7 @@ jobs:
       - name: Prepare deployment
         run: |
           mkdir build
-          mv index.html build/index.html
+          mv telecom_churn.nb.html build/index.html
       
       - name: Deploy gh_pages
         uses: JamesIves/github-pages-deploy-action@releases/v3
